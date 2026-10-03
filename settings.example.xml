@@ -1,0 +1,28 @@
+<settings>
+    <apis>
+        <api>
+            <name>Jikan</name>
+            <url>https://api.jikan.moe/v4/anime</url>
+            <type>rest</type>
+            <results_path>data</results_path>
+            <title_field>title</title_field>
+            <episodes_field>episodes</episodes_field>
+        </api>
+        <api>
+            <name>AniList</name>
+            <url>https://graphql.anilist.co</url>
+            <type>graphql</type>
+            <results_path>data.Page.media</results_path>
+            <title_field>title.romaji</title_field>
+            <episodes_field>episodes</episodes_field>
+        </api>
+        <api>
+            <name>MyCustomAPI</name>
+            <url>https://example.com/api/search</url>
+            <type>rest</type>
+            <results_path>results</results_path>
+            <title_field>name</title_field>
+            <episodes_field>episode_count</episodes_field>
+        </api>
+    </apis>
+</settings>
