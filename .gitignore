@@ -1,3 +1,4 @@
 test_search.py
 __pycache__/
-*.pycsettings.xml
+*.pyc
+settings.xml
