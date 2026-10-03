@@ -1,5 +1,9 @@
 import xml.etree.ElementTree as ET
 
+# Returns a tag's text, or None if the tag doesn't exist (so old entries don't crash)
+def get_text(element, tag):
+    found = element.find(tag)
+    return found.text if found is not None else None
 def load_apis(path="settings.xml"):
     tree = ET.parse(path)
     root = tree.getroot()
@@ -15,6 +19,9 @@ def load_apis(path="settings.xml"):
             "results_path": api.find("results_path").text,
             "title_field": api.find("title_field").text,
             "episodes_field": api.find("episodes_field").text,
+            "status_field": get_text(api, "status_field"),
+            "score_field": get_text(api, "score_field"),
+            "year_field": get_text(api, "year_field"),
         })
     return apis
 # Adds a new <api> entry to settings.xml permanently, so the user doesn't have to retype it

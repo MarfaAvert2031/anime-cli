@@ -1,5 +1,10 @@
 import requests  # third-party library that lets us send web requests (GET/POST) to APIs
 from config import load_apis, get_nested_value
+# Reads an optional field; returns "?" if the API has no path for it or the value is missing
+def get_optional(item, path):
+    if not path:
+        return "?"
+    return get_nested_value(item, path) or "?"
 # Tries ONE api config and returns clean results, or [] if it failed
 def try_single_api(api, query):
     try:
@@ -16,6 +21,9 @@ def try_single_api(api, query):
                     media(search: $search, type: ANIME) {
                         title { romaji }
                         episodes
+                        status
+                        averageScore
+                        seasonYear
                     }
                 }
             }'''
@@ -36,13 +44,19 @@ def try_single_api(api, query):
 
         # This will hold our results in ONE consistent shape, no matter which API we used
         clean_results = []
-
+           
         # Go through each raw result and pull out just the title and episode count,
         # using the field names this specific API told us to look for (also from settings.xml)
         for item in results:
             title = get_nested_value(item, api["title_field"]) or "Unknown"
             episodes = get_nested_value(item, api["episodes_field"]) or "?"
-            clean_results.append({"title": title, "episodes": episodes})
+            clean_results.append({
+                "title": title,
+                "episodes": episodes,
+                "status": get_optional(item, api.get("status_field")),
+                "score": get_optional(item, api.get("score_field")),
+                "year": get_optional(item, api.get("year_field")),
+            })
 
         # Let the user know which API actually answered successfully
         print(f"Using {api['name']}")
@@ -73,3 +87,37 @@ def search_anime(query):
 
     # If every single API failed, return an empty list so the caller can handle "no results"
     return []
+# Shows the results as a numbered list and lets the user pick one
+def pick_result(results):
+    for i, item in enumerate(results, start=1):
+        print(f"{i}. {item['title']}")
+
+    while True:
+        choice = input("Pick a number (or q to quit): ").strip()
+        if choice.lower() == "q":
+            return None
+        # isdigit() checks it's a number, then we check it's in range
+        if choice.isdigit() and 1 <= int(choice) <= len(results):
+            return results[int(choice) - 1]
+        print("Invalid choice, try again.")
+
+# Prints the details of the chosen anime
+def show_details(item):
+    print()
+    print(f"Title:    {item['title']}")
+    print(f"Episodes: {item['episodes']}")
+    print(f"Status:   {item['status']}")
+    print(f"Score:    {item['score']}")
+    print(f"Year:     {item['year']}")
+
+# Runs only when you start this file directly (python search.py)
+if __name__ == "__main__":
+    query = input("Search anime: ").strip()
+    results = search_anime(query)
+
+    if not results:
+        print("No results found.")
+    else:
+        chosen = pick_result(results)
+        if chosen:
+            show_details(chosen)
