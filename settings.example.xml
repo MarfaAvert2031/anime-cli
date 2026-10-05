@@ -7,6 +7,9 @@
             <results_path>data</results_path>
             <title_field>title</title_field>
             <episodes_field>episodes</episodes_field>
+            <status_field>status</status_field>
+            <score_field>score</score_field>
+            <year_field>year</year_field>
         </api>
         <api>
             <name>AniList</name>
@@ -15,6 +18,9 @@
             <results_path>data.Page.media</results_path>
             <title_field>title.romaji</title_field>
             <episodes_field>episodes</episodes_field>
+            <status_field>status</status_field>
+            <score_field>averageScore</score_field>
+            <year_field>seasonYear</year_field>
         </api>
         <api>
             <name>MyCustomAPI</name>
