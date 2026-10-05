@@ -22,6 +22,7 @@ def load_apis(path="settings.xml"):
             "status_field": get_text(api, "status_field"),
             "score_field": get_text(api, "score_field"),
             "year_field": get_text(api, "year_field"),
+            "query_param": get_text(api, "query_param"),
         })
     return apis
 # Adds a new <api> entry to settings.xml permanently, so the user doesn't have to retype it

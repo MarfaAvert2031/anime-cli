@@ -12,7 +12,8 @@ def try_single_api(api, query):
         if api["type"] == "rest":
             # REST: send a GET request, with our search term and result limit as URL parameters
             # timeout=5 means: give up waiting after 5 seconds instead of hanging forever
-            response = requests.get(api["url"], params={"q": query, "limit": 10}, timeout=5)
+            param_name = api.get("query_param") or "q"
+            response = requests.get(api["url"], params={param_name: query, "limit": 10}, timeout=5)
         else:
             # GraphQL: instead of URL parameters, we send a "query" string describing
             # exactly what fields we want back. $search is a placeholder filled in below.
