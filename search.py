@@ -1,12 +1,12 @@
 import requests  # third-party library that lets us send web requests (GET/POST) to APIs
-from config import load_apis, get_nested_value
+from config import load_apis, get_nested_value, save_api_to_settings
 # Reads an optional field; returns "?" if the API has no path for it or the value is missing
 def get_optional(item, path):
     if not path:
         return "?"
     return get_nested_value(item, path) or "?"
 # Tries ONE api config and returns clean results, or [] if it failed
-def try_single_api(api, query):
+def try_single_api(api, query, media="anime"):
     try:
         # Check what "dialect" this API speaks — REST APIs and GraphQL APIs are built differently
         if api["type"] == "rest":
@@ -17,19 +17,21 @@ def try_single_api(api, query):
         else:
             # GraphQL: instead of URL parameters, we send a "query" string describing
             # exactly what fields we want back. $search is a placeholder filled in below.
-            gql = '''query ($search: String) {
+             gql = '''query ($search: String, $type: MediaType) {
                 Page(perPage: 10) {
-                    media(search: $search, type: ANIME) {
+                    media(search: $search, type: $type) {
                         title { romaji }
                         episodes
+                        chapters
                         status
                         averageScore
                         seasonYear
+                        startDate { year }
                     }
                 }
             }'''
             # GraphQL always uses POST, with the query + its variables sent as JSON in the body
-            response = requests.post(api["url"], json={"query": gql, "variables": {"search": query}}, timeout=5)
+             requests.Response = requests.post(api["url"], json={"query": gql, "variables": {"search": query, "type": media.upper()}}, timeout=5)
 
         # If the server responded with an error status (404, 500, 504, etc.),
         # this line throws an exception on purpose — sending us straight to 'except' below
@@ -71,15 +73,26 @@ def try_single_api(api, query):
         print(f"{api['name']} failed: {e}")
         # Return an empty list instead of crashing — lets the caller just try the next API
         return []
-
+# Manga APIs, hardcoded in the same shape as the entries in settings.xml
+MANGA_APIS = [
+    {"name": "AniList Manga", "url": "https://graphql.anilist.co", "type": "graphql",
+     "results_path": "data.Page.media", "title_field": "title.romaji",
+     "episodes_field": "chapters", "status_field": "status",
+     "score_field": "averageScore", "year_field": "startDate.year"},
+    {"name": "Jikan Manga", "url": "https://api.jikan.moe/v4/manga", "type": "rest",
+     "results_path": "data", "title_field": "title",
+     "episodes_field": "chapters", "status_field": "status",
+     "score_field": "score", "year_field": "published.prop.from.year",
+     "query_param": "q"},
+]
 # Loops through every API in settings.xml, using try_single_api() for each one
-def search_anime(query):
+def search_anime(query, media="anime"):
     # Read the full list of configured APIs from settings.xml
-    apis = load_apis()
+    apis = MANGA_APIS if media=="manga" else load_apis()
 
     # Try each API one at a time, in the order they appear in the file
     for api in apis:
-        results = try_single_api(api, query)
+        results = try_single_api(api, query, media)
 
         # The moment ONE api succeeds, stop immediately and return its results —
         # no need to waste time calling the remaining APIs in the list
@@ -103,22 +116,49 @@ def pick_result(results):
         print("Invalid choice, try again.")
 
 # Prints the details of the chosen anime
-def show_details(item):
+def show_details(item, media="anime"):
+    label = "Chapters" if media == "manga" else "Episodes"
     print()
     print(f"Title:    {item['title']}")
-    print(f"Episodes: {item['episodes']}")
+    print(f"{label}: {item['episodes']}")
     print(f"Status:   {item['status']}")
     print(f"Score:    {item['score']}")
     print(f"Year:     {item['year']}")
 
+def add_custom_api():
+    api= {
+        "name": input("Name:").strip(),
+        "url":  input("URL: ").strip(),
+        "type": input("Type (rest/grapqL): ").strip() .lower(),
+        "results_path":  input("Results path (e.g data): ").strip(),
+        "title_field": input("Title field (e.g title): ").strip(),
+        "episodes_field": input("Episodes field: ").strip(),
+  }
+    if api["type"] == "rest":
+        api["query_param"] = input("Search parameter name (Enter for q): ").strip() or "q"
+    if try_single_api(api, "naruto"):
+        save_api_to_settings(api)
+        print("It works and it is saved")
+    else:
+        print("That API didn't work, so it wasn't saved")
 # Runs only when you start this file directly (python search.py)
 if __name__ == "__main__":
-    query = input("Search anime: ").strip()
-    results = search_anime(query)
+    print("1. Anime")
+    print("2. Manga")
+    print("3. Add my own API")
+    choice = input("Choose 1, 2 or 3: ").strip()
+
+    if choice == "3":
+        add_custom_api()
+        choice = "1"          # single = (assign), not ==
+    media = "manga" if choice == "2" else "anime"
+
+    query = input(f"Search {media}: ").strip()
+    results = search_anime(query, media)
 
     if not results:
         print("No results found.")
     else:
         chosen = pick_result(results)
         if chosen:
-            show_details(chosen)
+            show_details(chosen, media)   # pass media so manga says "Chapters"
