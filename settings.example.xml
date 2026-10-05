@@ -35,3 +35,31 @@
         </api>
     </apis>
 </settings>
+    <streaming_apis>
+        <api>
+            <name>Kuhi</name>
+            <url>http://127.0.0.1:8000</url>
+            <type>rest</type>
+            <search_path>/anime/search</search_path>
+            <query_param>query</query_param>
+            <episodes_path>/anime/episodes/{anilist_id}</episodes_path>
+            <extract_path>/anime/extract/{anilist_id}</extract_path>
+            <episode_param>e</episode_param>
+            <audio_param>type</audio_param>
+            <default_audio>sub</default_audio>
+            <results_path>results</results_path>
+            <streams_field>streams</streams_field>
+            <stream_url_field>url</stream_url_field>
+            <stream_type_field>type</stream_type_field>
+            <referer_field>referer</referer_field>
+            <enabled>true</enabled>
+        </api>
+        <api>
+            <name>JustalK</name>
+            <type>node-library</type>
+            <package>@justalk/anime-api</package>
+            <website>ANIMEOUT</website>
+            <methods>links,stream,download</methods>
+            <enabled>true</enabled>
+        </api>
+ </streaming_apis>
