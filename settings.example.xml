@@ -7,6 +7,7 @@
             <results_path>data</results_path>
             <title_field>title</title_field>
             <episodes_field>episodes</episodes_field>
+            <query_param>q</query_param>
             <status_field>status</status_field>
             <score_field>score</score_field>
             <year_field>year</year_field>
@@ -18,6 +19,7 @@
             <results_path>data.Page.media</results_path>
             <title_field>title.romaji</title_field>
             <episodes_field>episodes</episodes_field>
+            <query_param>q</query_param>
             <status_field>status</status_field>
             <score_field>averageScore</score_field>
             <year_field>seasonYear</year_field>
@@ -29,6 +31,7 @@
             <results_path>results</results_path>
             <title_field>name</title_field>
             <episodes_field>episode_count</episodes_field>
+            <query_param>q</query_param>
         </api>
     </apis>
 </settings>
