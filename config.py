@@ -1,21 +1,27 @@
 import xml.etree.ElementTree as ET
-
+import os
 # Returns a tag's text, or None if the tag doesn't exist (so old entries don't crash)
 def get_text(element, tag):
     found = element.find(tag)
     return found.text if found is not None else None
 def load_apis(path="settings.xml"):
+    if not os.path.exists(path):
+        print(f"{path} not found. Run: cp settings.example.xml {path}")
+        return []
     tree = ET.parse(path)
     root = tree.getroot()
 
+    apis_element = root.find("apis")
+    if apis_element is None:
+        print("No <apis> section found in", path)
+        return []
+
     apis = []
-    
-    for api in root.find("apis"):
+    for api in apis_element:
         apis.append({
             "name": api.find("name").text,
             "url": api.find("url").text,
             "type": api.find("type").text,
-            # New: paths that tell us where to find data in THIS api's specific JSON shape
             "results_path": api.find("results_path").text,
             "title_field": api.find("title_field").text,
             "episodes_field": api.find("episodes_field").text,
