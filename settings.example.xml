@@ -34,7 +34,6 @@
             <query_param>q</query_param>
         </api>
     </apis>
-</settings>
     <streaming_apis>
         <api>
             <name>Kuhi</name>
@@ -44,6 +43,8 @@
             <query_param>query</query_param>
             <episodes_path>/anime/episodes/{anilist_id}</episodes_path>
             <extract_path>/anime/extract/{anilist_id}</extract_path>
+            <info_path>/anime/info/{anilist_id}</info_path>
+            <info_fields>title,status,episodes</info_fields>
             <episode_param>e</episode_param>
             <audio_param>type</audio_param>
             <default_audio>sub</default_audio>
@@ -62,4 +63,14 @@
             <methods>links,stream,download</methods>
             <enabled>true</enabled>
         </api>
+    <api>
+        <name>HdRezka</name>
+        <type>node-library</type>
+        <package>HDrezka</package>
+        <base_url>https://hdrezka.ag</base_url>
+        <proxy></proxy>
+        <default_quality>720p</default_quality>
+        <enabled>true</enabled>
+    </api>
  </streaming_apis>
+ </settings>
