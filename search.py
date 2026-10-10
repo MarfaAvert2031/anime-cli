@@ -31,7 +31,7 @@ def try_single_api(api, query, media="anime"):
                 }
             }'''
             # GraphQL always uses POST, with the query + its variables sent as JSON in the body
-             requests.Response = requests.post(api["url"], json={"query": gql, "variables": {"search": query, "type": media.upper()}}, timeout=5)
+             requests = requests.post(api["url"], json={"query": gql, "variables": {"search": query, "type": media.upper()}}, timeout=5)
 
         # If the server responded with an error status (404, 500, 504, etc.),
         # this line throws an exception on purpose — sending us straight to 'except' below

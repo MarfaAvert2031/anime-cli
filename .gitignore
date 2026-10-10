@@ -2,3 +2,4 @@ test_search.py
 __pycache__/
 *.pyc
 settings.xml
+test.py
