@@ -57,9 +57,7 @@ def save_api_to_settings(api, path="settings.xml"):
         apis_element = ET.SubElement(root, "apis")
 
     new_api = ET.SubElement(apis_element, "api")    
-
-    # Build a new <api> element and its child tags, one by one
-    new_api = ET.SubElement(apis_element, "api")
+# Build a new <api> element and its child tags, one by one
     for tag in REQUIRED_TAGS:
         ET.SubElement(new_api, tag).text = api[tag]
     for tag in OPTIONAL_TAGS:

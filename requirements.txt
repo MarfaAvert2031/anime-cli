@@ -1,2 +1,5 @@
 requests
 yt-dlp
+git+https://github.com/kristal374/hdrezka-api.git
+Node.js+@justalk/anime-api
+Kuhi
