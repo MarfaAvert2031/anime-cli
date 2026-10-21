@@ -84,3 +84,69 @@ def get_nested_value(data, path):
         else:
             return None
     return data
+# ---------- streaming APIs (the <streaming_apis> section) ----------
+ 
+# These tags run programs on your computer, so they are never copied in from imported files
+LOCAL_ONLY_TAGS = {"start_dir", "start_command"}
+ 
+# Adds (or replaces, if the name already exists) one <api> in <streaming_apis>
+def save_streaming_api(api, path="settings.xml"):
+    if not ensure_settings(path):
+        return False
+    tree = ET.parse(path)
+    root = tree.getroot()
+    section = root.find("streaming_apis")
+    if section is None:
+        section = ET.SubElement(root, "streaming_apis")
+    for old in section.findall("api"):
+        if (old.findtext("name") or "").strip() == api["name"]:
+            section.remove(old)
+    node = ET.SubElement(section, "api")
+    for tag, value in api.items():
+        if value:  # skip empty values
+            ET.SubElement(node, tag).text = str(value)
+    ET.indent(tree)
+    tree.write(path)
+    return True
+ 
+# Copies every <api> from another XML file into your settings. Returns how many were added.
+def import_apis_from_file(file_path, path="settings.xml"):
+    try:
+        root = ET.parse(file_path).getroot()
+    except (OSError, ET.ParseError) as e:
+        print(f"Could not read {file_path}: {e}")
+        return 0
+    section = root if root.tag == "streaming_apis" else root.find("streaming_apis")
+    nodes = section.findall("api") if section is not None else root.findall("api")
+    added = 0
+    for node in nodes:
+        api = {c.tag: (c.text or "").strip() for c in node}
+        if not api.get("name") or not api.get("type"):
+            print("Skipped an <api> without a name or type")
+            continue
+        for tag in LOCAL_ONLY_TAGS:
+            api.pop(tag, None)
+        api.setdefault("enabled", "true")
+        if save_streaming_api(api, path):
+            added += 1
+    return added
+ 
+ 
+# Sets one tag of one streaming API (e.g. Kuhi's start_dir). Returns True if it worked.
+def set_streaming_api_value(name, tag, value, path="settings.xml"):
+    if not ensure_settings(path):
+        return False
+    tree = ET.parse(path)
+    section = tree.getroot().find("streaming_apis")
+    if section is None:
+        return False
+    for api in section.findall("api"):
+        if (api.findtext("name") or "").strip() == name:
+            node = api.find(tag)
+            if node is None:
+                node = ET.SubElement(api, tag)
+            node.text = value
+            ET.indent(tree)
+            tree.write(path)
+            return True
+    return False

@@ -65,7 +65,7 @@
         </api>
     <api>
         <name>HdRezka</name>
-        <type>node-library</type>
+        <type>python-library</type>
         <package>HDrezka</package>
         <base_url>https://hdrezka.ag</base_url>
         <proxy></proxy>

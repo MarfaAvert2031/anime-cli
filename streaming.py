@@ -3,6 +3,12 @@
 No API names are hardcoded: every <api> block is read from the XML, and the
 `type` tag decides how it is called (rest, node-library, python-library).
 """
+import atexit
+import importlib.util
+import shlex
+import shutil
+import sys 
+import time
 import json
 import os
 import subprocess
@@ -10,6 +16,7 @@ import xml.etree.ElementTree as ET
 
 import requests
 
+from config import ensure_settings
 REQUIRED = {
     "rest": ["name", "url", "search_path", "extract_path"],
     "node-library": ["name", "package"],
@@ -60,9 +67,20 @@ def fill_id(template, anime_id):
     """Put the id into a path. Both {id} and {anilist_id} work."""
     return template.replace("{anilist_id}", str(anime_id)).replace("{id}", str(anime_id))
 
+def short_error(e):
+    if isinstance(e, requests.ConnectionError):
+        return "could not connect (is the server running?)"
+    if isinstance(e, requests.Timeout):
+        return "timeout"
+    if isinstance(e, FileNotFoundError):
+        return f"program not found {e.filename}"
+    return str(e)[:200]
+
 
 def load_streaming_apis(path="settings.xml"):
     """Return enabled, valid <api> blocks from <streaming_apis> as dicts."""
+    if not ensure_settings(path):
+      return []
     root = ET.parse(path).getroot()
     section = root if root.tag == "streaming_apis" else root.find("streaming_apis")
     apis = []
@@ -81,6 +99,64 @@ def load_streaming_apis(path="settings.xml"):
         apis.append(api)
     return apis
 
+_started = []
+atexit.register(lambda: [p.terminate() for p in _started])
+
+def server_up(api):
+    try:
+        requests.get(api["url"], timeout = 2)
+        return True
+    except requests.RequestException:
+        return False
+def ensure_server(api):
+    if server_up(api):
+        return True
+    start_dir = os.path.expanduser(api.get("start_dir", ""))
+    if not start_dir or not os.path.isdir(start_dir):
+        return False
+    if api.get("start_command"):
+        cmd = shlex.split(api["start_command"], posix=(os.name != "nt"))
+    else:
+        cmd = [sys.executable, "-m", "uvicorn", "api:app"]
+    print (f"Starting {api['name']} ... ")
+    _started.append(subprocess.Popen(cmd, cwd=start_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
+    for _ in range(20):
+        time.sleep(1)
+        if server_up(api):
+            return True
+    return False
+
+def check_sources(apis):
+    rows = []
+    for api in apis:
+        kind = api["type"]
+        if kind == "rest":
+            ok = server_up(api)
+            if ok:
+                note = "reachable"
+            elif api.get("start_dir"):
+                note = "not running (will start automatically)"
+            else:
+                note = "not running - start it, or add <start_dir> in settings_example.xml"
+        elif kind == "node-library":
+            if not shutil.which("node"):
+                ok, note = False, "Node.js is not installed"
+            elif not os.path.isdir(os.path.join("node_modules", api["packages"])):
+                ok,note=False, f"run: npm install {api['packages']}"
+            else:
+                ok,note=True,"ready"
+        elif kind == "python-library":
+            try:
+                ok = importlib.util.find_spec(api['package']) is not None
+            except (ImportError, ValueError):
+                ok = False
+                note = "ready" if ok else "not installed - run py -m pip install -r requirements.txt"
+        else:
+            ok,note = False, f"unknown type '{type}'"
+            rows.append((api["name"], ok, note))
+    return rows
+
+      
 
 # ---------- rest (Kuhi and similar) ----------
 
@@ -123,6 +199,11 @@ def rest_streams(api, anime_id, episode, audio=None):
 # ---------- node library (JustalK) ----------
 
 def node_streams(api, title, episode):
+    if not shutil.which("node"):
+        raise RuntimeError("Node.js is not installed. Install it (winget install OpenJS.NodeJS.LTS), "
+                           "reopen the terminal, then run: npm install " + api["package"])
+    if not os.path.isdir(os.path.join("node_modules", api["package"])):
+        raise RuntimeError(f"Package not installed. Run in the project folder: npm install {api['package']}")
     cmd = ["node", "-e", NODE_SCRIPT, api["package"], title, str(episode),
            api.get("website", "")]
     out = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
@@ -196,23 +277,33 @@ def get_details(api, anime_id):
 def watch(apis, query, episode=1, audio=None):
     """Search, get details, get streams. Returns the first source that works."""
     for api in apis:
+        name = api["name"]
         try:
-            if api["type"] == "node-library":
+            if api["type"] == "rest":
+                if not ensure_server(api):
+                    print(f"[{name}] is not running. Start it, or add <start_dir> in "
+                          "settings.xml so it starts automatically.")
+                    continue
+                results = search(api, query)
+                if not results:
+                    print(f"[{name}] no results for '{query}'")
+                    continue
+                top = results[0]
+                details = get_details(api, top["id"]) if api.get("info_path") else None
+                streams = get_streams(api, top["id"], episode, audio)
+                title = top["title"]
+            elif api["type"] in ("node-library", "python-library"):
+                if api["type"] == "python-library":
+                    print(f"[{name}] movies only - the episode number is ignored")
                 streams = get_streams(api, query, episode)
-                return {"source": api["name"], "title": query,
-                        "details": None, "streams": streams}
-            if api["type"] != "rest":
+                details, title = None, query
+            else:
                 continue
-            results = search(api, query)
-            if not results:
-                continue
-            top = results[0]
-            details = get_details(api, top["id"]) if api.get("info_path") else None
-            streams = get_streams(api, top["id"], episode, audio)
-            return {"source": api["name"], "title": top["title"],
-                    "details": details, "streams": streams}
+            if streams:
+                return {"source": name, "title": title, "details": details, "streams": streams}
+            print(f"[{name}] found the title but no streams for episode {episode}")
         except Exception as e:
-            print(f"[{api['name']}] failed: {e}")
+            print(f"[{name}] failed: {short_error(e)}")
     return None
 
 
@@ -226,7 +317,6 @@ def try_each(apis, func, *args):
 
 
 if __name__ == "__main__":
-    import sys
 
     query = sys.argv[1] if len(sys.argv) > 1 else "naruto"
     apis = load_streaming_apis()

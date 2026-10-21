@@ -4,3 +4,10 @@ __pycache__/
 settings.xml
 test.py
 downloads/
+node_modules/
+  .venv/
+  __pycache__/
+  *.pyc
+  node_modules/
+.venv/
+kuhi/
