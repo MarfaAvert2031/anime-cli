@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import sys
 import platform
+import glob
 
 from config import import_apis_from_file, save_streaming_api, set_streaming_api_value
 from streaming import (load_streaming_apis, watch, search, get_streams,
@@ -27,16 +28,27 @@ def install_hint(program):
     return (f"Install it with: sudo pacman -S {program} (Arch/CachyOS)\n"
             f"or: sudo apt install {program} (Ubuntu/Debian)")
 
+def find_program(name):
+    found = shutil.which(name)
+    if found:
+        return found
+    if platform.system() == "Windows":
+        winget = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WinGet")
+        for pattern in (os.path.join(winget, "Links", f"{name}.exe"),
+                        os.path.join(winget, "Packages", "*", f"{name}.exe"),
+                        os.path.join(winget, "Packages", "*", "*", f"{name}.exe")):
+            hits = glob.glob(pattern)
+            if hits:
+                return hits[0]
+    return None
 
 def play(stream):
-    if not shutil.which("mpv"):
-        print("mpv is not installed.")
+    mpv = find_program("mpv")
+    if not mpv:
+        print("mpv is not installed")
         print(install_hint("mpv"))
         return
-    cmd = ["mpv", stream["url"]]
-    if stream.get("referer"):
-        cmd.append(f"--referrer={stream['referer']}")
-    subprocess.run(cmd)
+    cmd = [cmd, stream("url")]
 
 
 def download(stream, title, episode):
@@ -233,3 +245,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
