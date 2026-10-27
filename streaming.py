@@ -5,18 +5,20 @@ No API names are hardcoded: every <api> block is read from the XML, and the
 """
 import atexit
 import importlib.util
-import shlex
-import shutil
-import sys 
-import time
 import json
 import os
+import shlex
+import shutil
 import subprocess
+import sys
+import time
 import xml.etree.ElementTree as ET
+from urllib.parse import parse_qsl
 
 import requests
 
 from config import ensure_settings
+
 REQUIRED = {
     "rest": ["name", "url", "search_path", "extract_path"],
     "node-library": ["name", "package"],
@@ -67,20 +69,22 @@ def fill_id(template, anime_id):
     """Put the id into a path. Both {id} and {anilist_id} work."""
     return template.replace("{anilist_id}", str(anime_id)).replace("{id}", str(anime_id))
 
+
 def short_error(e):
+    """A short, readable version of an error (no giant connection messages)."""
     if isinstance(e, requests.ConnectionError):
         return "could not connect (is the server running?)"
     if isinstance(e, requests.Timeout):
-        return "timeout"
+        return "timed out"
     if isinstance(e, FileNotFoundError):
-        return f"program not found {e.filename}"
+        return f"program not found: {e.filename}"
     return str(e)[:200]
 
 
 def load_streaming_apis(path="settings.xml"):
     """Return enabled, valid <api> blocks from <streaming_apis> as dicts."""
     if not ensure_settings(path):
-      return []
+        return []
     root = ET.parse(path).getroot()
     section = root if root.tag == "streaming_apis" else root.find("streaming_apis")
     apis = []
@@ -99,16 +103,24 @@ def load_streaming_apis(path="settings.xml"):
         apis.append(api)
     return apis
 
-_started = []
+
+# ---------- servers and health checks ----------
+
+_started = []  # servers this program started, so we can stop them when it exits
 atexit.register(lambda: [p.terminate() for p in _started])
 
+
 def server_up(api):
+    """True if something answers at the API's address (any answer counts)."""
     try:
-        requests.get(api["url"], timeout = 2)
+        requests.get(api["url"], timeout=2)
         return True
     except requests.RequestException:
         return False
+
+
 def ensure_server(api):
+    """If a local server is not running and <start_dir> is set, start it."""
     if server_up(api):
         return True
     start_dir = os.path.expanduser(api.get("start_dir", ""))
@@ -118,15 +130,18 @@ def ensure_server(api):
         cmd = shlex.split(api["start_command"], posix=(os.name != "nt"))
     else:
         cmd = [sys.executable, "-m", "uvicorn", "api:app"]
-    print (f"Starting {api['name']} ... ")
-    _started.append(subprocess.Popen(cmd, cwd=start_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
-    for _ in range(20):
+    print(f"Starting {api['name']} ...")
+    _started.append(subprocess.Popen(cmd, cwd=start_dir, stdout=subprocess.DEVNULL,
+                                     stderr=subprocess.DEVNULL))
+    for _ in range(20):  # wait up to 20 seconds
         time.sleep(1)
         if server_up(api):
             return True
     return False
 
+
 def check_sources(apis):
+    """Returns a list of (name, ok, note) saying whether each source is ready to use."""
     rows = []
     for api in apis:
         kind = api["type"]
@@ -137,26 +152,25 @@ def check_sources(apis):
             elif api.get("start_dir"):
                 note = "not running (will start automatically)"
             else:
-                note = "not running - start it, or add <start_dir> in settings_example.xml"
+                note = "not running - start it, or add <start_dir> in settings.xml"
         elif kind == "node-library":
             if not shutil.which("node"):
                 ok, note = False, "Node.js is not installed"
-            elif not os.path.isdir(os.path.join("node_modules", api["packages"])):
-                ok,note=False, f"run: npm install {api['packages']}"
+            elif not os.path.isdir(os.path.join("node_modules", api["package"])):
+                ok, note = False, f"run: npm install {api['package']}"
             else:
-                ok,note=True,"ready"
+                ok, note = True, "ready"
         elif kind == "python-library":
             try:
-                ok = importlib.util.find_spec(api['package']) is not None
+                ok = importlib.util.find_spec(api["package"]) is not None
             except (ImportError, ValueError):
                 ok = False
-                note = "ready" if ok else "not installed - run py -m pip install -r requirements.txt"
+            note = "ready" if ok else "not installed - run: py -m pip install -r requirements.txt"
         else:
-            ok,note = False, f"unknown type '{type}'"
-            rows.append((api["name"], ok, note))
+            ok, note = False, f"unknown type '{kind}'"
+        rows.append((api["name"], ok, note))
     return rows
 
-      
 
 # ---------- rest (Kuhi and similar) ----------
 
@@ -173,29 +187,80 @@ def rest_search(api, query):
     return [{"id": i.get(id_f), "title": pick_title(i.get(title_f, ""))} for i in items]
 
 
+def read_subtitles(api, container):
+    """Subtitle files listed in a response (or in one stream), in one clean shape."""
+    try:
+        raw = get_path(container, api.get("subtitles_field", "subtitles"))
+    except (KeyError, IndexError, ValueError, TypeError):
+        return []
+    url_f = api.get("subtitle_url_field", "url")
+    lang_f = api.get("subtitle_lang_field", "srclang")
+    label_f = api.get("subtitle_label_field", "label")
+    subs = []
+    for item in raw if isinstance(raw, list) else []:
+        if isinstance(item, dict) and item.get(url_f):
+            subs.append({"url": item[url_f], "lang": item.get(lang_f) or "",
+                         "label": item.get(label_f) or "", "default": bool(item.get("default"))})
+    return subs
+
+
 def rest_streams(api, anime_id, episode, audio=None):
     path = fill_id(api["extract_path"], anime_id)
+    params = {
+        api.get("episode_param", "e"): episode,
+        api.get("audio_param", "type"): audio or api.get("default_audio", "sub"),
+    }
+    # Optional extra parameters from settings.xml, e.g. <extra_params>provider=anizone</extra_params>
+    for key, value in parse_qsl(api.get("extra_params", "")):
+        params[key] = value
     r = requests.get(
         api["url"] + path,
         headers=build_headers(api),
-        params={
-            api.get("episode_param", "e"): episode,
-            api.get("audio_param", "type"): audio or api.get("default_audio", "sub"),
-        },
+        params=params,
         timeout=60,
     )
     r.raise_for_status()
-    streams = get_path(r.json(), api.get("streams_field", "streams"))
-    return [
-        {
+    data = r.json()
+    streams = get_path(data, api.get("streams_field", "streams"))
+    shared = read_subtitles(api, data)  # subtitles listed once for the whole response
+    result = []
+    for s in streams:
+        subs = list(shared)
+        for sub in read_subtitles(api, s):
+            if sub["url"] not in [x["url"] for x in subs]:
+                subs.append(sub)
+        result.append({
             "url": s.get(api.get("stream_url_field", "url")),
             "type": s.get(api.get("stream_type_field", "type")),
             "referer": s.get(api.get("referer_field", "referer")),
-        }
-        for s in streams
-    ]
+            "subtitles": subs,
+        })
+    return result
+def get_stream_with_fallback(api, anilist_id,episode, preferred="sub"):
+    others = [a for a in ("sub", "dub") if a != preferred]
+    for audio in [preferred] + others:
+        try:
+            streams = rest_streams(api, anilist_id, episode, audio)
+        except Exception as e:
+            print(f"[{api['name']}] {audio} failed {e}")
+            continue
+        if streams:
+            if audio != preferred:
+               print(f"No {preferred} found, showing {audio} instead.")
+            return audio, streams
+    return None, []
 
-
+def get_stream_any_provider(api, anime_id, episode, preferred="sub"):
+    providers = [p.strip() for p in api.get("providers", "").split(",") if p.strip()]
+    if not providers:
+        return get_stream_with_fallback(api, anime_id, episode, preferred)
+    for p in providers:
+        trial= dict(api, extra_params=f"provider={p}")
+        audio, streams = get_stream_with_fallback(trial, anime_id, episode, preferred)
+        if streams:
+            print(f"Using provider: {p}")
+            return audio, streams
+    return None, []
 # ---------- node library (JustalK) ----------
 
 def node_streams(api, title, episode):
@@ -290,6 +355,7 @@ def watch(apis, query, episode=1, audio=None):
                     continue
                 top = results[0]
                 details = get_details(api, top["id"]) if api.get("info_path") else None
+                preferred = get_details(api, top["id"]) if api.get("info_path") else None
                 streams = get_streams(api, top["id"], episode, audio)
                 title = top["title"]
             elif api["type"] in ("node-library", "python-library"):
@@ -306,6 +372,12 @@ def watch(apis, query, episode=1, audio=None):
             print(f"[{name}] failed: {short_error(e)}")
     return None
 
+def play(stream):
+    vlc = shutil.which("vlc") or r"C:\Program FIles\VideoLAN\VLC\vlc.exe"
+    cmd = [vlc, stream["url"]]
+    if stream.get("referrer"):
+        cmd.append(f"--help-referrer={stream["referrer"]}")
+    subprocess.Popen(cmd)
 
 def try_each(apis, func, *args):
     """Run func(api, *args) on every API; a failing one is reported, not fatal."""
@@ -313,10 +385,11 @@ def try_each(apis, func, *args):
         try:
             yield api["name"], func(api, *args)
         except Exception as e:
-            print(f"[{api['name']}] failed: {e}")
+            print(f"[{api['name']}] failed: {short_error(e)}")
 
 
 if __name__ == "__main__":
+    import sys
 
     query = sys.argv[1] if len(sys.argv) > 1 else "naruto"
     apis = load_streaming_apis()
@@ -337,3 +410,4 @@ if __name__ == "__main__":
             print("Details:", found["details"])
             for s in found["streams"]:
                 print("  ", s)
+                play(found["streams"][0])

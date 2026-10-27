@@ -150,3 +150,12 @@ def set_streaming_api_value(name, tag, value, path="settings.xml"):
             tree.write(path)
             return True
     return False
+
+def get_preference(tag,default="", path="settings.xml"):
+    if not ensure_settings(path):
+        return default
+    try:
+        value=ET.parse(path).getroot().findtext(f"preferences/{tag}")
+    except ET.ParseError:
+        return default
+    return value.strip() if value and value.strip() else default

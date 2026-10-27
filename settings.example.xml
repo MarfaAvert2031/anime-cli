@@ -1,4 +1,8 @@
 <settings>
+    <preferences>
+    <subtitle_language>ru,en</subtitle_language>
+    <default_audio>sub</default_audio>
+    </preferences>
     <apis>
         <api>
             <name>Jikan</name>
@@ -53,6 +57,8 @@
             <stream_url_field>url</stream_url_field>
             <stream_type_field>type</stream_type_field>
             <referer_field>referer</referer_field>
+            <start_dir>C:\path\to\Kuhi-anime-api</start_dir>
+            <providers>anizone,anineko,anikoto</providers>
             <enabled>true</enabled>
         </api>
         <api>
@@ -61,7 +67,7 @@
             <package>@justalk/anime-api</package>
             <website>ANIMEOUT</website>
             <methods>links,stream,download</methods>
-            <enabled>true</enabled>
+            <enabled>false</enabled>
         </api>
     <api>
         <name>HdRezka</name>
