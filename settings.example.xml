@@ -67,7 +67,7 @@
             <package>@justalk/anime-api</package>
             <website>ANIMEOUT</website>
             <methods>links,stream,download</methods>
-            <enabled>false</enabled>
+            <enabled>true</enabled>
         </api>
     <api>
         <name>HdRezka</name>
