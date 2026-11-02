@@ -113,29 +113,21 @@ def play(stream):
 def download(stream, title, episode):
     safe = re.sub(r'[\\/:*?"<>|%]', "", title)
     os.makedirs("downloads", exist_ok=True)
+    out = f"downloads/{safe} - E{episode}"
+    cmd = [sys.executable, "-m", "yt_dlp",
+           "-N", "8",
+           "--user-agent", BROWSER_UA,
+           "-o", out + ".%(ext)s",
+           stream["url"]]
     if stream["type"] in ("hls", "m3u8"):
-        # ffmpeg reads the playlist once and copies the video without re-encoding
-        ffmpeg = find_program("ffmpeg")
-        if not ffmpeg:
-            print("ffmpeg is not installed.")
-            print(install_hint("ffmpeg"))
-            return
-        out = f"downloads/{safe} - E{episode}.mkv"
-        cmd = [ffmpeg, "-y", "-user_agent", BROWSER_UA]
-        if stream.get("referer"):
-            cmd += ["-headers", f"Referer: {stream['referer']}\r\n"]
-        cmd += ["-i", stream["url"], "-c", "copy", out]
-    else:
-        out = f"downloads/{safe} - E{episode}"
-        cmd = [sys.executable, "-m", "yt_dlp", "-o", out + ".%(ext)s", stream["url"]]
-        if stream.get("referer"):
-            cmd += ["--referer", stream["referer"]]
+        cmd += ["--remux-video", "mkv"]  # needs ffmpeg, which you already check for
+    if stream.get("referer"):
+        cmd += ["--referer", stream["referer"]]
     if subprocess.run(cmd).returncode == 0:
         print(f"Saved: {out}")
     else:
         print("The download failed. Stream links expire after a few minutes, "
               "so search again and download right away.")
-
 
 # Asks a question. Pressing Enter gives back the [default].
 def ask(prompt, default=""):
