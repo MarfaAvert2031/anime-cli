@@ -94,11 +94,14 @@ When you ask for dub, the program tries dub on **every** provider first. Only if
 Choose subtitle languages (in order of preference) with:
 
 ```xml
-<preferences>
-    <subtitle_language>en,ru</subtitle_language>
-</preferences>
+ <preferences>
+    <fullscreen>true</fullscreen>
+    <subtitle_language>ru,en</subtitle_language>
+    <default_audio>sub</default_audio>
+    </preferences>
 ```
-
+- `subtitle_language`: subtitle languages in order of preference.
+- `fullscreen`: `true` starts mpv in fullscreen (the default), `false` starts it in a window. Inside mpv, press `f` to toggle fullscreen and `Esc` to leave it.
 ## Run
 
 ```bash
