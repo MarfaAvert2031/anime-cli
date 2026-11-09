@@ -1,19 +1,14 @@
-test_search.py
 __pycache__/
 *.pyc
-settings.xml
-test.py
-downloads/
-node_modules/
-  venv/
-  __pycache__/
-  *.pyc
-  node_modules/
+venv/
 .venv/
+node_modules/
+settings.xml
+downloads/
+logs/
 kuhi/
 .last_update
-Justalk_test.py
-node_modules/
-package-lock.json
-logs/
+test.py
 test.js
+test_search.py
+Justalk_test.py
