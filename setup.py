@@ -86,7 +86,9 @@ def install_node_packages():
     if not shutil.which("npm"):
         print("  npm not found, skipping. Install Node.js and run setup again.")
         return
-    run(["npm", "install"], cwd=ROOT, shell=(SYSTEM == "Windows"))
+    if run(["npm", "install"], cwd=ROOT, shell=(SYSTEM == "Windows")).returncode != 0:
+        print("  npm install failed. JustalK is optional. If the error mentions Chromium/puppeteer, try:")
+        print("  PUPPETEER_SKIP_DOWNLOAD=1 npm install   (Windows: set PUPPETEER_SKIP_DOWNLOAD=1 first)")
 
 
 def create_settings():

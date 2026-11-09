@@ -73,7 +73,7 @@ def fill_id(template, anime_id):
 def short_error(e):
     """A short, readable version of an error (no giant connection messages)."""
     if isinstance(e, requests.ConnectionError):
-        return "could not connect (is the server running?)"
+        return "could not connect (no internet, or the server/site is down)"
     if isinstance(e, requests.Timeout):
         return "timed out"
     if isinstance(e, FileNotFoundError):
@@ -236,51 +236,46 @@ def rest_streams(api, anime_id, episode, audio=None):
             "subtitles": subs,
         })
     return result
-def get_stream_with_fallback(api, anilist_id,episode, preferred="sub"):
+def get_stream_any_provider(api, anime_id, episode, preferred="sub"):
+    """Try the preferred audio on EVERY provider first; only then fall back to the other audio."""
+    providers = [p.strip() for p in api.get("providers", "").split(",") if p.strip()]
     others = [a for a in ("sub", "dub") if a != preferred]
     for audio in [preferred] + others:
-        try:
-            streams = rest_streams(api, anilist_id, episode, audio)
-        except Exception as e:
-            print(f"[{api['name']}] {audio} failed {e}")
-            continue
-        if streams:
-            if audio != preferred:
-               print(f"No {preferred} found, showing {audio} instead.")
-            return audio, streams
+        for provider in providers or [None]:
+            trial = dict(api, extra_params=f"provider={provider}") if provider else api
+            try:
+                streams = rest_streams(trial, anime_id, episode, audio)
+            except Exception as e:
+                print(f"[{api['name']}] {provider or 'default'} {audio}: {short_error(e)}")
+                continue
+            if streams:
+                if audio != preferred:
+                    print(f"No {preferred} found on any provider, showing {audio} instead.")
+                if provider:
+                    print(f"Using provider: {provider}")
+                return audio, streams
     return None, []
 
-def get_stream_any_provider(api, anime_id, episode, preferred="sub"):
-    providers = [p.strip() for p in api.get("providers", "").split(",") if p.strip()]
-    if not providers:
-        return get_stream_with_fallback(api, anime_id, episode, preferred)
-    for p in providers:
-        trial= dict(api, extra_params=f"provider={p}")
-        audio, streams = get_stream_with_fallback(trial, anime_id, episode, preferred)
-        if streams:
-            print(f"Using provider: {p}")
-            return audio, streams
-    return None, []
+
 # ---------- node library (JustalK) ----------
 
 def node_streams(api, title, episode):
     if not shutil.which("node"):
-        raise RuntimeError("Node.js is not installed. Install it (winget install OpenJS.NodeJS.LTS), "
-                           "reopen the terminal, then run: npm install " + api["package"])
+        raise RuntimeError("Node.js is not installed (winget install OpenJS.NodeJS.LTS), "
+                           "then run: npm install " + api["package"])
     if not os.path.isdir(os.path.join("node_modules", api["package"])):
         raise RuntimeError(f"Package not installed. Run in the project folder: npm install {api['package']}")
-    cmd = ["node", "-e", NODE_SCRIPT, api["package"], title, str(episode),
-           api.get("website", "")]
+    cmd = ["node", "-e", NODE_SCRIPT, api["package"], title, str(episode), api.get("website", "")]
     out = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
     if out.returncode != 0:
         raise RuntimeError(out.stderr.strip()[-300:] or "node failed")
+    # The library returns [[], [], []] when nothing is found, so flatten and keep real results only
     groups = json.loads(out.stdout)
     items = [s for g in groups for s in (g if isinstance(g, list) else [g])]
     links = [s for s in items if isinstance(s, dict) and s.get("link")]
     if not links:
         raise RuntimeError("no streams found")
-    return [{"url": s["link"], "type": "page", "referer": None,
-             "source": s.get("source")} for s in json.loads(out.stdout)]
+    return [{"url": s["link"], "type": "page", "referer": None, "source": s.get("source")} for s in links]
 
 
 # ---------- python library (HDrezka) ----------
@@ -360,29 +355,22 @@ def watch(apis, query, episode=1, audio=None):
                     continue
                 top = results[0]
                 details = get_details(api, top["id"]) if api.get("info_path") else None
-                preferred = get_details(api, top["id"]) if api.get("info_path") else None
-                streams = get_streams(api, top["id"], episode, audio)
+                got_audio, streams = get_stream_any_provider(api, top["id"], episode, audio or "sub")
                 title = top["title"]
             elif api["type"] in ("node-library", "python-library"):
                 if api["type"] == "python-library":
                     print(f"[{name}] movies only - the episode number is ignored")
                 streams = get_streams(api, query, episode)
-                details, title = None, query
+                details, title, got_audio = None, query, None
             else:
                 continue
             if streams:
-                return {"source": name, "title": title, "details": details, "streams": streams}
+                return {"source": name, "title": title, "details": details,
+                        "streams": streams, "audio": got_audio}
             print(f"[{name}] found the title but no streams for episode {episode}")
         except Exception as e:
             print(f"[{name}] failed: {short_error(e)}")
     return None
-
-def play(stream):
-    vlc = shutil.which("vlc") or r"C:\Program FIles\VideoLAN\VLC\vlc.exe"
-    cmd = [vlc, stream["url"]]
-    if stream.get("referrer"):
-        cmd.append(f"--help-referrer={stream["referrer"]}")
-    subprocess.Popen(cmd)
 
 def try_each(apis, func, *args):
     """Run func(api, *args) on every API; a failing one is reported, not fatal."""
@@ -415,4 +403,5 @@ if __name__ == "__main__":
             print("Details:", found["details"])
             for s in found["streams"]:
                 print("  ", s)
+                from player import play
                 play(found["streams"][0])
