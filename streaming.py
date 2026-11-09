@@ -274,6 +274,11 @@ def node_streams(api, title, episode):
     out = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
     if out.returncode != 0:
         raise RuntimeError(out.stderr.strip()[-300:] or "node failed")
+    groups = json.loads(out.stdout)
+    items = [s for g in groups for s in (g if isinstance(g, list) else [g])]
+    links = [s for s in items if isinstance(s, dict) and s.get("link")]
+    if not links:
+        raise RuntimeError("no streams found")
     return [{"url": s["link"], "type": "page", "referer": None,
              "source": s.get("source")} for s in json.loads(out.stdout)]
 
