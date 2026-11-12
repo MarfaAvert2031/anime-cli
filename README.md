@@ -13,13 +13,12 @@ A command-line tool to search anime and get watch links. It asks several streami
 ```bash
 git clone https://github.com/MarfaAvert2031/anime-cli
 cd anime-cli
-<<<<<<< HEAD
 python setup.py
 ./run.sh
 ```
 
 On Windows, use `py setup.py` and then `run.bat`.
-=======
+
 python setup.py        # Windows: py setup.py
 ```
 
@@ -55,7 +54,7 @@ Linux asks for your password once, to install ffmpeg, mpv and Node.js.
 1. Start the program with `./run.sh` (Windows: `run.bat`).
 2. Choose **1**, type an anime name, pick an episode, and choose sub or dub.
 3. Choose to watch it in mpv or download it.
-=======
+
 ```fish
 python -m venv venv
 source venv/bin/activate.fish
@@ -83,7 +82,6 @@ git pull
 python setup.py
 ```
 
-<<<<<<< HEAD
 ## Problems
 
 | Problem | Fix |
@@ -191,7 +189,7 @@ Add an `<api>` block to `settings.xml` with a `name`, `type`, and the tags that 
 | `No module named HDrezka` | Activate the venv, then run `pip install -r requirements.txt` again. |
 | `mpv is not installed` | Install it (`winget install --id shinchiro.mpv`, `sudo pacman -S mpv`, or `sudo apt install mpv`). |
 | `py: Unknown command` on Linux | Use `python` instead of `py`. |
->>>>>>> 7ccb00bfdaaf4f02079267aa9404b4788e0a2263
+
 
 ## Disclaimer
 
