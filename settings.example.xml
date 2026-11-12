@@ -1,5 +1,6 @@
 <settings>
     <preferences>
+    <fullscreen>true</fullscreen>
     <subtitle_language>ru,en</subtitle_language>
     <default_audio>sub</default_audio>
     </preferences>

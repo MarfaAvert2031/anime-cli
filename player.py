@@ -107,6 +107,9 @@ def play(stream):
     for lang in langs:
         codes += sorted(c for c in LANG_NAMES.get(lang, {lang}) if len(c) <= 3)
     cmd.append("--slang=" + ",".join(codes))
+    cmd = [mpv, stream["url"]]
+    if get_preference("fullscreen", "true").lower() == "true":
+        cmd.append("--fullscreen")
     subprocess.run(cmd)
 
 
