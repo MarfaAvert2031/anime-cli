@@ -154,14 +154,11 @@ def watch_flow():
     audio = "dub" if answer.startswith("d") else "sub"
 
     found = watch(apis, query, episode, audio)
-    if not found and audio == "dub":
-        print("No dubbed version found. Trying with subtitles ...")
-        audio = "sub"
-        found = watch(apis, query, episode, audio)
     if not found:
         print("No streams found. Use option 4 in the menu to check your sources.")
         return
 
+    audio = found.get("audio") or audio   # what was really found (may be sub after a dub fallback)
     print(f"\n{found['title']} (from {found['source']})")
     for key, value in (found["details"] or {}).items():
         print(f"  {key}: {value}")
