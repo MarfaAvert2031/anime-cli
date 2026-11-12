@@ -1,16 +1,14 @@
 # anime-cli
 
-<<<<<<< HEAD
 Search anime in your terminal, then watch it in mpv or download it. It tries several sources (Kuhi, JustalK, HdRezka) and uses the first one that works.
 
 ## Quick start
 
 You need **Python 3.10+** and **git**. Setup installs everything else.
-=======
 A command-line tool to search anime and get watch links. It asks several streaming sources (Kuhi, JustalK, HdRezka) and returns the first one that works. It can play the stream in mpv or download it.
 
 ## Quick start
->>>>>>> 7ccb00bfdaaf4f02079267aa9404b4788e0a2263
+
 
 ```bash
 git clone https://github.com/MarfaAvert2031/anime-cli
@@ -49,13 +47,11 @@ If you prefer to install things yourself, see [Manual install](#manual-install).
 - Node.js and npm (only for the JustalK source)
 
 ## Manual install
->>>>>>> 7ccb00bfdaaf4f02079267aa9404b4788e0a2263
 
 Linux asks for your password once, to install ffmpeg, mpv and Node.js.
 
 ## How to use
 
-<<<<<<< HEAD
 1. Start the program with `./run.sh` (Windows: `run.bat`).
 2. Choose **1**, type an anime name, pick an episode, and choose sub or dub.
 3. Choose to watch it in mpv or download it.
@@ -65,13 +61,12 @@ python -m venv venv
 source venv/bin/activate.fish
 pip install -r requirements.txt
 ```
->>>>>>> 7ccb00bfdaaf4f02079267aa9404b4788e0a2263
+
 
 Choose **4** at any time to check which sources work.
 
-<<<<<<< HEAD
 ## Update
-=======
+
 **Windows:**
 
 ```powershell
@@ -81,7 +76,7 @@ pip install -r requirements.txt
 ```
 
 **Node packages (only for JustalK):**
->>>>>>> 7ccb00bfdaaf4f02079267aa9404b4788e0a2263
+
 
 ```bash
 git pull
@@ -108,7 +103,7 @@ python setup.py
    ```
    Windows: `<start_dir>C:\Users\yourname\anime-cli\kuhi</start_dir>`
 4. Save and run the program again.
-=======
+
 The install downloads Chromium, which can fail on restricted networks. If it does, run `PUPPETEER_SKIP_DOWNLOAD=1 npm install` (Windows: `set PUPPETEER_SKIP_DOWNLOAD=1` first).
 
 ## Settings
@@ -200,11 +195,10 @@ Add an `<api>` block to `settings.xml` with a `name`, `type`, and the tags that 
 
 ## Disclaimer
 
-<<<<<<< HEAD
 - `settings.xml` is created for you from `settings.example.xml`. Edit it to turn sources on or off, or to add your own API.
 - JustalK can be unreliable. Set `<enabled>false</enabled>` for it if it keeps failing.
 - HdRezka supports movies only for now.
 - Personal learning project. Only use it for content you have the right to watch.
 =======
 This is a personal learning project. It does not host, store or distribute any video. It only links to third-party sources, and it is your responsibility to follow the laws of your country. Use it only with content you have the right to watch.
->>>>>>> 7ccb00bfdaaf4f02079267aa9404b4788e0a2263
+
